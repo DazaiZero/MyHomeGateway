@@ -1,0 +1,157 @@
+service: bs-global
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-iam-roles-per-function
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+
+  environment:
+    TableName: ${self:custom.tableName}
+    TableName1: ${self:custom.tableName1}
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - 'dynamodb:PutItem'
+            - 'dynamodb:GetItem'
+            - 'dynamodb:DeleteItem'
+            - 'dynamodb:Scan'
+            - 'dynamodb:Query'
+            - 'dynamodb:UpdateItem'
+          Resource:
+            - 'arn:aws:dynamodb:*:*:table/${self:custom.tableName}'
+            - 'arn:aws:dynamodb:*:*:table/${self:custom.tableName1}'
+            - 'arn:aws:dynamodb:*:*:table/${self:custom.tableName}/index/*'
+            - 'arn:aws:dynamodb:*:*:table/${self:custom.tableName1}/index/*'
+        - Effect: Allow
+          Action:
+            - 'execute-api:ManageConnections'
+            - 'dynamodb:PutItem'
+            - 'dynamodb:GetItem'
+            - 'dynamodb:DeleteItem'
+            - 'dynamodb:Scan'
+            - 'dynamodb:Query'
+            - 'dynamodb:UpdateItem'
+          Resource:
+            - 'arn:aws:execute-api:*:*:**/@connections/*'
+
+custom:
+  tableName: bsConnected
+  tableName1: bsUserSubscription
+
+functions:
+  connectionHandler:
+    handler: handler.connectionHandler
+    events:
+      - websocket:
+          route: $connect
+      - websocket:
+          route: $disconnect
+  defaultHandler:
+    handler: handler.defaultHandler
+    events:
+      - websocket:
+          route: $default
+  sendMessageHandler:
+    handler: handler.sendMessageHandler
+    events:
+      - websocket:
+          route: sendMessage
+
+resources:
+  Resources:
+    BsConnTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: 'connectionId'
+            AttributeType: 'S'
+          - AttributeName: 'usercode'
+            AttributeType: 'S'
+          - AttributeName: 'isConnected'
+            AttributeType: 'S'
+          - AttributeName: 'bssid'
+            AttributeType: 'S'
+        KeySchema:
+          - AttributeName: 'connectionId'
+            KeyType: 'HASH'
+        GlobalSecondaryIndexes:
+          - IndexName: 'user_index'
+            KeySchema:
+              - AttributeName: 'usercode'
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+          - IndexName: 'iscon_index'
+            KeySchema:
+              - AttributeName: 'isConnected'
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+          - IndexName: 'bssid_index'
+            KeySchema:
+              - AttributeName: 'bssid'
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.tableName}
+
+    bsUserSubscription:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: 'id'
+            AttributeType: 'S'
+          - AttributeName: 'usercode'
+            AttributeType: 'S'
+          - AttributeName: 'isSubscribed'
+            AttributeType: 'S'
+          - AttributeName: 'plan'
+            AttributeType: 'S'
+          - AttributeName: 'enddate'
+            AttributeType: 'S'
+          - AttributeName: 'startdate'
+            AttributeType: 'S'
+        KeySchema:
+          - AttributeName: 'id'
+            KeyType: 'HASH'
+        GlobalSecondaryIndexes:
+          - IndexName: 'isSub_index'
+            KeySchema:
+              - AttributeName: 'usercode'
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+          - IndexName: 'isSub_index_flag'
+            KeySchema:
+              - AttributeName: 'isSubscribed'
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+          - IndexName: 'isSub_plan_index'
+            KeySchema:
+              - AttributeName: 'plan'
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+          - IndexName: 'isSub_start_index'
+            KeySchema:
+              - AttributeName: 'startdate'
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+          - IndexName: 'isSub_enddate_index'
+            KeySchema:
+              - AttributeName: 'enddate'
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.tableName1}

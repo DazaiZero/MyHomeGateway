@@ -1,0 +1,6 @@
+Operational parameter (Op) = 5,3,1,2
+1 - Wifi OTA - Done
+2 - register HW - Done 
+3 - Live - Done
+4 - Register User - In Progress
+5 - in server update (auth,type) - done
